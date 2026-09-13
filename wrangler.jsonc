@@ -1,0 +1,14 @@
+{
+  "name": "acg-grid",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist"
+  },
+  "routes": [
+    {
+      "pattern": "grid.1dream.online",
+      "custom_domain": true
+    }
+  ]
+}
