@@ -3,3 +3,4 @@ doc.local/
 node_modules/
 dist/
 .wrangler/
+.zcode/
