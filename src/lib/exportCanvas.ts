@@ -122,15 +122,21 @@ interface Geometry {
   wallY: number;
   width: number; // 画布逻辑宽
   height: number; // 画布逻辑高
+  /** 元数据分离模式：每张卡追加的元数据条高度（逻辑像素） */
+  extra: number;
+  /** 元数据分离模式：元数据条文字度量（基于行高目标值，与屏幕端一致） */
+  stripM: ReturnType<typeof metaMetrics>;
 }
 
 function computeGeometry(input: ExportInput): Geometry {
   const aspects = input.cards.map((c) => c.aspect);
+  const extra = input.settings.separatedMeta ? metaMetrics(input.settings.rowHeight).metaH : 0;
   const layout = justifyLayout({
     aspects,
     containerWidth: input.containerWidth,
     rowHeight: input.settings.rowHeight,
     gap: input.settings.gap,
+    extraHeight: extra,
   });
   const width = layout.width + MARGIN * 2;
   const height = MARGIN + TITLE_BLOCK_H + TITLE_GAP + layout.height + MARGIN;
@@ -142,6 +148,8 @@ function computeGeometry(input: ExportInput): Geometry {
     wallY: MARGIN + TITLE_BLOCK_H + TITLE_GAP,
     width,
     height,
+    extra,
+    stripM: metaMetrics(input.settings.rowHeight),
   };
 }
 
@@ -292,6 +300,44 @@ function drawMetaOverlay(
   }
 }
 
+/** 分离模式元数据条内容：态度/名字左对齐，徽章右侧垂直居中（与屏幕端 meta-strip 同一公式） */
+function drawStripContent(
+  ctx: CanvasRenderingContext2D,
+  card: Card,
+  m: ReturnType<typeof metaMetrics>,
+  x: number,
+  y: number,
+  w: number,
+  coverH: number,
+  stripH: number,
+  scale: number,
+): void {
+  const px = (v: number) => v * scale;
+  const badge = badgeSpec(card.type, m);
+  // x/y 为卡片在墙内的绝对逻辑坐标，行中心直接按绝对坐标计算
+  // （与 drawMetaOverlay 同一约定，文字若用相对坐标会整块画到封面上）
+  const line1CY = y + coverH + m.padTop + m.attitudeFS * 0.61;
+  const line2CY = line1CY + m.attitudeFS * 1.22 - m.attitudeFS * 0.61 + m.lineGap + m.nameFS * 0.65;
+  const textX = x + m.padX;
+  const maxTextW = w - m.padX * 2 - (badge ? badge.width + m.innerGap : 0);
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  if (card.attitude) {
+    ctx.fillStyle = '#2b2b33';
+    ctx.font = `700 ${px(m.attitudeFS)}px ${FONT_STACK}`;
+    drawTruncated(ctx, card.attitude, px(textX), px(line1CY), px(maxTextW));
+  }
+  if (card.name) {
+    ctx.fillStyle = '#55555f';
+    ctx.font = `500 ${px(m.nameFS)}px ${FONT_STACK}`;
+    drawTruncated(ctx, card.name, px(textX), px(line2CY), px(maxTextW));
+  }
+  if (badge) {
+    drawBadge(ctx, badge, x + w - badge.width / 2 - m.padX * 0.7, y + coverH + stripH / 2, scale);
+  }
+}
+
 /** 尝试以指定倍率渲染整墙，返回 blob；任何一步失败返回 null（由外层降档重试） */
 async function attemptRender(input: ExportInput, geo: Geometry, scale: number): Promise<Blob | null> {
   const W = geo.width * scale;
@@ -338,6 +384,11 @@ async function attemptRender(input: ExportInput, geo: Geometry, scale: number): 
     const h = px(placed.h);
     const r = px(cardRadius(placed.h));
 
+    // 卡片整体（分离模式 = 封面 + 底部元数据条；叠加模式 = 封面本身），
+    // 单一圆角路径裁剪保证外轮廓圆角连续
+    const extra = geo.extra;
+    const tileHp = px(placed.h + extra);
+
     const blob = card.imageId ? input.sources.get(card.imageId) ?? null : null;
     let bitmap: ImageBitmap | null = null;
     if (blob) {
@@ -348,10 +399,10 @@ async function attemptRender(input: ExportInput, geo: Geometry, scale: number): 
       }
     }
 
-    // 封面（圆角裁剪；占位卡为渐变水蓝玻璃块）
     ctx.save();
-    roundRectPath(ctx, x, y, w, h, r);
+    roundRectPath(ctx, x, y, w, tileHp, r);
     ctx.clip();
+    // 封面（占位卡为渐变水蓝玻璃块）
     if (bitmap) {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
@@ -370,21 +421,42 @@ async function attemptRender(input: ExportInput, geo: Geometry, scale: number): 
       ctx.fillStyle = gloss;
       ctx.fillRect(x, y, w, h * 0.45);
     }
+    const blank = !card.attitude && !card.name && !card.type;
+    if (extra > 0) {
+      // 分离模式：不透明元数据条（与屏幕端同色、同度量）
+      const sy = y + h;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.96)';
+      ctx.fillRect(x, sy, w, px(extra));
+      ctx.fillStyle = 'rgba(160, 200, 235, 0.35)';
+      ctx.fillRect(x, sy, w, Math.max(1, scale));
+      if (!blank) {
+        drawStripContent(
+          ctx,
+          card,
+          geo.stripM,
+          geo.wallX + placed.x,
+          geo.wallY + placed.y,
+          placed.w,
+          placed.h,
+          extra,
+          scale,
+        );
+      }
+    }
     ctx.restore();
+
+    // 叠加模式：空白卡不绘制叠加层，导出墙面保持纯封面
+    if (extra === 0 && !blank) {
+      drawMetaOverlay(ac, bitmap, card, geo.wallX + placed.x, geo.wallY + placed.y, placed.w, placed.h);
+    }
 
     // 卡片描边与投影感（细白描边统一观感）
     ctx.save();
-    roundRectPath(ctx, x + 0.5, y + 0.5, w - 1, h - 1, r);
+    roundRectPath(ctx, x + 0.5, y + 0.5, w - 1, tileHp - 1, r);
     ctx.strokeStyle = 'rgba(255,255,255,0.65)';
     ctx.lineWidth = Math.max(1, scale);
     ctx.stroke();
     ctx.restore();
-
-    // 空白卡（无任何元数据）不绘制叠加层，导出墙面保持纯封面
-    const blank = !card.attitude && !card.name && !card.type;
-    if (!blank) {
-      drawMetaOverlay(ac, bitmap, card, geo.wallX + placed.x, geo.wallY + placed.y, placed.w, placed.h);
-    }
 
     bitmap?.close();
   }

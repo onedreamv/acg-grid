@@ -20,9 +20,11 @@ export interface CanvasSettings {
   rowHeight: number;
   /** 卡片间距 0–25px，默认 5 */
   gap: number;
+  /** 元数据分离：元数据条追加在卡片下方，不遮挡模糊封面 */
+  separatedMeta: boolean;
 }
 
-export const DEFAULT_SETTINGS: CanvasSettings = { rowHeight: 250, gap: 5 };
+export const DEFAULT_SETTINGS: CanvasSettings = { rowHeight: 250, gap: 5, separatedMeta: false };
 
 /** IndexedDB 图片库条目：原图 Blob（仅导出用）+ 缩略图 Blob（屏幕用） */
 export interface StoredImage {

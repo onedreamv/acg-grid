@@ -172,6 +172,21 @@ input[type='range'] {
   height: 20px;
 }
 
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.switch-row input[type='checkbox'] {
+  width: 38px;
+  height: 22px;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
 /* ── 标题 ─────────────────────────────────────────────────── */
 
 .title-bar {
@@ -445,6 +460,41 @@ input[type='range'] {
 .type-badge {
   display: block;
   border-radius: 999px;
+}
+
+/* ── 元数据分离模式：不透明元数据条追加在封面下方 ─────────── */
+
+.card-tile-separated {
+  filter: drop-shadow(0 6px 18px rgba(102, 204, 255, 0.18)) drop-shadow(0 2px 5px rgba(120, 130, 160, 0.10));
+}
+
+.card-tile-separated .card-cover {
+  box-shadow: none;
+}
+
+.card-tile-separated .card-cover:hover {
+  transform: none;
+}
+
+.meta-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid rgba(160, 200, 235, 0.35);
+  cursor: pointer;
+}
+
+.meta-strip:hover {
+  background: #ffffff;
+}
+
+.meta-strip.meta-strip-empty {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.meta-strip.meta-strip-empty:hover {
+  background: rgba(255, 255, 255, 0.85);
 }
 
 /* ── 弹窗通用 ─────────────────────────────────────────────── */

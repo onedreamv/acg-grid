@@ -16,6 +16,11 @@ export interface LayoutInput {
   gap: number;
   /** 行高容差（构建期可调），默认 0.15 */
   tolerance?: number;
+  /**
+   * 每张卡片在封面之下追加的固定高度（元数据分离模式 = 元数据条高）。
+   * 行高容差仍按封面高度计算，行距按「封面高 + 追加高」推进。
+   */
+  extraHeight?: number;
 }
 
 export interface PlacedCard {
@@ -39,6 +44,7 @@ const EPS = 1e-6;
 export function justifyLayout(input: LayoutInput): LayoutResult {
   const { aspects, containerWidth: W, rowHeight: H, gap } = input;
   const tolerance = input.tolerance ?? 0.15;
+  const extra = input.extraHeight ?? 0;
   const n = aspects.length;
   const items: PlacedCard[] = [];
   if (n === 0 || W <= 0) return { items, width: 0, height: 0 };
@@ -93,13 +99,14 @@ export function justifyLayout(input: LayoutInput): LayoutResult {
       x += w + gap;
       maxRowWidth = Math.max(maxRowWidth, x - gap);
     }
-    y += h + gap;
+    y += h + extra + gap;
     start = bestEnd;
   }
 
   return {
     items,
     width: Math.min(maxRowWidth, W),
+    // y = Σ(行高 + 追加高 + 间距)，去掉行尾多余间距即为内容总高
     height: Math.max(0, y - gap),
   };
 }

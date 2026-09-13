@@ -129,6 +129,15 @@ export function ControlPanel({
                 : '查询中…'}
             </span>
           </div>
+          <label className="switch-row" title="元数据条追加在卡片下方，不遮挡模糊封面">
+            <span className="slider-label">元数据分离</span>
+            <input
+              type="checkbox"
+              role="switch"
+              checked={settings.separatedMeta}
+              onChange={(e) => onSettingsChange({ ...settings, separatedMeta: e.target.checked })}
+            />
+          </label>
         </div>
       )}
     </div>

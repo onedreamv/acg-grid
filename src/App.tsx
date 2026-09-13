@@ -19,6 +19,7 @@ import { exportWallPNG } from './lib/exportCanvas';
 import { genId } from './lib/id';
 import { ImageStore } from './lib/imageStore';
 import { justifyLayout } from './lib/layout';
+import { metaMetrics } from './lib/metrics';
 import { openStorage, requestPersistentStorage, type Storage } from './lib/storage';
 import type { BangumiCandidate, CanvasSettings, Card } from './types';
 
@@ -98,11 +99,12 @@ function AppInner() {
         if (!st.persistent) {
           toast('当前浏览器环境不支持持久化存储，刷新后数据可能丢失', 'error');
         }
-        const loadedCards = await st.loadCards();
-        const loadedSettings = await st.loadSettings();
-        const loadedTitle = await st.loadTitle();
-        if (!alive) return;
-        if (loadedSettings) setSettings(loadedSettings);
+      const loadedCards = await st.loadCards();
+      const loadedSettings = await st.loadSettings();
+      const loadedTitle = await st.loadTitle();
+      if (!alive) return;
+      // 旧版本持久化的 settings 可能缺少新字段，合并默认值
+      if (loadedSettings) setSettings({ ...DEFAULT_SETTINGS, ...loadedSettings });
         if (loadedTitle) setTitle(loadedTitle);
         if (loadedCards.length === 0) {
           // 首次访问：随机 10 张占位卡，立即落库，次序入场
@@ -174,6 +176,9 @@ function AppInner() {
   });
 
   // ── 布局 ────────────────────────────────────────────────────────────────
+  // 分离模式：元数据条高度按行高目标值固定（避免与行高互相依赖），行距按封面高+条高推进
+  const stripMeta = useMemo(() => metaMetrics(settings.rowHeight), [settings.rowHeight]);
+  const extraMetaH = settings.separatedMeta ? stripMeta.metaH : 0;
   const layout = useMemo(() => {
     if (!cards.length || wallWidth <= 0) return { items: [], width: 0, height: 0 };
     return justifyLayout({
@@ -181,8 +186,9 @@ function AppInner() {
       containerWidth: wallWidth,
       rowHeight: settings.rowHeight,
       gap: settings.gap,
+      extraHeight: extraMetaH,
     });
-  }, [cards, wallWidth, settings]);
+  }, [cards, wallWidth, settings, extraMetaH]);
 
   const cardById = useCallback((id: string | null) => cards.find((c) => c.id === id) ?? null, [cards]);
 
@@ -422,6 +428,9 @@ function AppInner() {
                   thumbUrl={card.imageId ? thumbUrls.get(card.imageId) ?? null : null}
                   staged={stagedIds.has(card.id)}
                   animationDelay={stagedIds.has(card.id) ? placed.index * 220 : 0}
+                  separated={settings.separatedMeta}
+                  stripH={extraMetaH}
+                  stripM={stripMeta}
                   onCoverClick={() => setSearchCardId(card.id)}
                   onMetaClick={() => setEditCardId(card.id)}
                 />
