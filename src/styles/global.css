@@ -374,6 +374,34 @@ input[type='range'] {
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0.56), rgba(255, 255, 255, 0.68));
 }
 
+/* 空态磨砂条（无任何元数据的卡片）：贴底、更淡，hover 浮现提示 */
+.meta-layer.meta-empty {
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.34));
+}
+
+.meta-layer.meta-empty:hover {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.55));
+}
+
+.meta-empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+  pointer-events: none;
+}
+
+.meta-layer.meta-empty:hover .meta-empty-hint {
+  opacity: 0.85;
+}
+
 .meta-lines {
   display: flex;
   flex-direction: column;

@@ -365,7 +365,11 @@ async function attemptRender(input: ExportInput, geo: Geometry, scale: number): 
     ctx.stroke();
     ctx.restore();
 
-    drawMetaOverlay(ac, bitmap, card, geo.wallX + placed.x, geo.wallY + placed.y, placed.w, placed.h);
+    // 空白卡（无任何元数据）不绘制叠加层，导出墙面保持纯封面
+    const blank = !card.attitude && !card.name && !card.type;
+    if (!blank) {
+      drawMetaOverlay(ac, bitmap, card, geo.wallX + placed.x, geo.wallY + placed.y, placed.w, placed.h);
+    }
 
     bitmap?.close();
   }

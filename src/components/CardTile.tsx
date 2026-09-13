@@ -74,9 +74,25 @@ export function CardTile({
         )}
       </div>
 
-      {/* 元数据层：点击唤出元数据编辑 */}
-      {hasMeta && (
-        mode === 'full' ? (
+      {/* 元数据层：点击唤出元数据编辑。空白卡渲染空态磨砂条（通栏形态），保证始终有点击入口 */}
+      {!hasMeta ? (
+        <div
+          className="meta-layer meta-empty"
+          style={{
+            height: m.metaH,
+            maskImage: `linear-gradient(to bottom, transparent 0, #000 ${m.fadeH}px)`,
+            WebkitMaskImage: `linear-gradient(to bottom, transparent 0, #000 ${m.fadeH}px)`,
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMetaClick();
+          }}
+          role="button"
+          aria-label="编辑元数据"
+        >
+          <span className="meta-empty-hint">编辑元数据</span>
+        </div>
+      ) : mode === 'full' ? (
           <div
             className="meta-layer meta-full"
             style={{
@@ -139,7 +155,7 @@ export function CardTile({
             )}
           </div>
         )
-      )}
+      }
     </div>
   );
 }
