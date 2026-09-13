@@ -99,7 +99,9 @@ export function CardTile({
               height: m.metaH + m.fadeH,
               maskImage: `linear-gradient(to bottom, transparent 0, #000 ${m.fadeH}px)`,
               WebkitMaskImage: `linear-gradient(to bottom, transparent 0, #000 ${m.fadeH}px)`,
-              padding: `${m.padTop}px ${m.padX}px ${m.padBottom}px`,
+              // 渐隐带占据元素顶部 fadeH：文字相对可见实心区排布（与导出端一致），
+              // 否则文字会上浮一个渐隐带高度
+              padding: `${m.padTop + m.fadeH}px ${m.padX}px ${m.padBottom}px`,
             }}
             onClick={(e) => {
               e.stopPropagation();
@@ -112,6 +114,7 @@ export function CardTile({
               card={card}
               attitudeFS={m.attitudeFS}
               nameFS={m.nameFS}
+              lineGap={m.lineGap}
               nameMaxW={w - m.padX * 2 - (badge ? badge.width + m.innerGap : 0)}
             />
             {badge && (
@@ -143,6 +146,7 @@ export function CardTile({
               card={card}
               attitudeFS={m.attitudeFS}
               nameFS={m.nameFS}
+              lineGap={m.lineGap}
               nameMaxW={w - m.edgeMargin * 2 - m.padX * 2 - (badge ? badge.width + m.innerGap : 0)}
             />
             {badge && (
@@ -164,15 +168,17 @@ function MetaText({
   card,
   attitudeFS,
   nameFS,
+  lineGap,
   nameMaxW,
 }: {
   card: Card;
   attitudeFS: number;
   nameFS: number;
+  lineGap: number;
   nameMaxW: number;
 }) {
   return (
-    <div className="meta-lines">
+    <div className="meta-lines" style={{ gap: lineGap }}>
       {card.attitude && (
         <div className="meta-attitude" style={{ fontSize: attitudeFS }}>
           {card.attitude}

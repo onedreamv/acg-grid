@@ -221,43 +221,58 @@ function drawMetaOverlay(
     badgeCY = line1CY;
   }
 
-  ctx.save();
-  roundRectPath(ctx, px(regionX), px(regionY), px(regionW), px(regionH), px(radius));
-  ctx.clip();
-
-  // 亚克力：模糊取样自整张封面（overscan 防止边缘透入透明区）
-  if (bitmap && blurEnabled) {
-    const blur = Math.max(4, 9 * m.s); // 逻辑模糊半径
-    const overscan = blur * 2;
-    ctx.filter = `blur(${blur * scale}px)`;
-    ctx.drawImage(
-      bitmap,
-      px(x - overscan),
-      px(y - overscan),
-      px(w + overscan * 2),
-      px(h + overscan * 2),
-    );
-    ctx.filter = 'none';
-  } else if (bitmap) {
-    // 无 ctx.filter 回退：不模糊，靠下面更高不透明度铺底
-    ctx.drawImage(bitmap, px(x), px(y), px(w), px(h));
+  // 亚克力叠加层：离屏合成（模糊底图 + 白色渐变），full 模式再用 destination-in
+  // 垂直渐变对整份合成结果做渐隐带衰减——与屏幕端 CSS mask 语义一致。
+  // 若直接在主画布上画，渐隐带里模糊纹理不受白色渐变以外的任何衰减，
+  // 磨砂区会看起来比屏幕端高出一整条渐隐带。
+  const overlayW = Math.max(1, Math.round(px(regionW)));
+  const overlayH = Math.max(1, Math.round(px(regionH)));
+  const off = document.createElement('canvas');
+  off.width = overlayW;
+  off.height = overlayH;
+  const octx = off.getContext('2d');
+  if (octx) {
+    if (bitmap) {
+      const blur = Math.max(4, 9 * m.s); // 逻辑模糊半径
+      const overscan = blur * 2;
+      if (blurEnabled) octx.filter = `blur(${blur * scale}px) saturate(1.35)`;
+      octx.drawImage(
+        bitmap,
+        px(x - overscan - regionX),
+        px(y - overscan - regionY),
+        px(w + overscan * 2),
+        px(h + overscan * 2),
+      );
+      octx.filter = 'none';
+    }
+    const baseAlpha = blurEnabled ? 0.56 : 0.78;
+    const grad = octx.createLinearGradient(0, 0, 0, overlayH);
+    if (mode === 'full') {
+      const fadeStop = Math.min(0.99, px(m.fadeH) / overlayH);
+      grad.addColorStop(0, 'rgba(255,255,255,0)');
+      grad.addColorStop(fadeStop, `rgba(255,255,255,${baseAlpha - 0.06})`);
+      grad.addColorStop(1, `rgba(255,255,255,${baseAlpha})`);
+    } else {
+      grad.addColorStop(0, `rgba(255,255,255,${baseAlpha - 0.04})`);
+      grad.addColorStop(1, `rgba(255,255,255,${baseAlpha + 0.06})`);
+    }
+    octx.fillStyle = grad;
+    octx.fillRect(0, 0, overlayW, overlayH);
+    if (mode === 'full') {
+      const fadeGrad = octx.createLinearGradient(0, 0, 0, px(m.fadeH));
+      fadeGrad.addColorStop(0, 'rgba(0,0,0,0)');
+      fadeGrad.addColorStop(1, 'rgba(0,0,0,1)');
+      octx.globalCompositeOperation = 'destination-in';
+      octx.fillStyle = fadeGrad;
+      octx.fillRect(0, 0, overlayW, overlayH);
+      octx.globalCompositeOperation = 'source-over';
+    }
+    ctx.save();
+    roundRectPath(ctx, px(regionX), px(regionY), px(regionW), px(regionH), px(radius));
+    ctx.clip();
+    ctx.drawImage(off, px(regionX), px(regionY));
+    ctx.restore();
   }
-
-  // 白色渐变叠加（回退模式不透明度更高）
-  const baseAlpha = blurEnabled ? 0.56 : 0.78;
-  const grad = ctx.createLinearGradient(0, px(regionY), 0, px(regionY + regionH));
-  if (mode === 'full') {
-    const fadeStop = m.fadeH / regionH;
-    grad.addColorStop(0, `rgba(255,255,255,0)`);
-    grad.addColorStop(fadeStop, `rgba(255,255,255,${baseAlpha - 0.06})`);
-    grad.addColorStop(1, `rgba(255,255,255,${baseAlpha})`);
-  } else {
-    grad.addColorStop(0, `rgba(255,255,255,${baseAlpha - 0.04})`);
-    grad.addColorStop(1, `rgba(255,255,255,${baseAlpha + 0.06})`);
-  }
-  ctx.fillStyle = grad;
-  ctx.fillRect(px(regionX), px(regionY), px(regionW), px(regionH));
-  ctx.restore();
 
   // 文本块：态度（大）在上、名字（小）在下，左对齐
   ctx.textAlign = 'left';
