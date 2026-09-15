@@ -998,8 +998,8 @@ input[type='range'] {
 .toast-stack {
   position: fixed;
   top: 18px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   z-index: 200;
   display: flex;
   flex-direction: column;
@@ -1255,4 +1255,17 @@ input[type='range'] {
 
 .sheet-action-danger .sheet-action-title {
   color: #d4486a;
+}
+
+/* ── 页面捏合放大：fixed 浮层钉回可视视口 ───────────────────
+   双指放大后 fixed 浮层仍锚定布局视口，会被放大并移出屏幕外。
+   App.tsx 监听 visualViewport，把偏移/缩放比写入根元素（仅非
+   identity 时挂 .vv-pinned），这里对浮层反向平移 + 缩放：
+   overlay 布局尺寸 = 布局视口，scale(1/s) 后视觉恰好覆盖可视视口，
+   面板视觉尺寸与未缩放时一致；浮层自身动画全在子元素上，不冲突。 */
+.vv-pinned .modal-overlay,
+.vv-pinned .action-sheet-overlay,
+.vv-pinned .toast-stack {
+  transform: translate(var(--vv-x, 0px), var(--vv-y, 0px)) scale(var(--vv-s, 1));
+  transform-origin: 0 0;
 }

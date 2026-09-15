@@ -237,6 +237,39 @@ function AppInner() {
     };
   }, []);
 
+  // ── 页面捏合放大：把 fixed 浮层钉回可视视口 ──────────────────────────────
+  // 双指放大后 fixed 浮层仍锚定布局视口（会被放大并移出屏幕外）。把可视视口
+  // 相对布局视口的偏移与缩放比写入根元素，global.css 据此对浮层反向补偿；
+  // 未缩放时不挂 .vv-pinned，样式保持 identity，桌面零影响。
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const root = document.documentElement;
+    const update = () => {
+      const v = window.visualViewport;
+      if (!v) return;
+      const { scale, offsetLeft, offsetTop } = v;
+      const identity =
+        Math.abs(scale - 1) < 0.001 && Math.abs(offsetLeft) < 0.5 && Math.abs(offsetTop) < 0.5;
+      if (identity) {
+        root.classList.remove('vv-pinned');
+        return;
+      }
+      root.style.setProperty('--vv-x', `${offsetLeft}px`);
+      root.style.setProperty('--vv-y', `${offsetTop}px`);
+      root.style.setProperty('--vv-s', `${1 / scale}`);
+      root.classList.add('vv-pinned');
+    };
+    vv.addEventListener('scroll', update);
+    vv.addEventListener('resize', update);
+    update();
+    return () => {
+      vv.removeEventListener('scroll', update);
+      vv.removeEventListener('resize', update);
+      root.classList.remove('vv-pinned');
+    };
+  }, []);
+
   // ── 布局 ────────────────────────────────────────────────────────────────
   // 构图宽度：compact 恒为 1280（导出与桌面大屏同一构图）；桌面按舞台宽 1:1，上限 1280
   const canvasWidth = compact ? WALL_MAX_WIDTH : Math.min(stageWidth, WALL_MAX_WIDTH);
