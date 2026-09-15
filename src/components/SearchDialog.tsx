@@ -137,7 +137,10 @@ export function SearchDialog({
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="modal-overlay modal-overlay--sheet"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="search-modal" role="dialog" aria-modal="true" aria-label="选择卡片对象">
         <button className="modal-close" aria-label="关闭" onClick={onClose}>
           <CloseIcon />

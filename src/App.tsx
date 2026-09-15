@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useLayoutEffect, useRef, useState } from 'react';
+import { CardActionSheet } from './components/CardActionSheet';
 import { CardTile } from './components/CardTile';
 import { ConfirmModal } from './components/ConfirmModal';
 import { ControlPanel } from './components/ControlPanel';
@@ -24,6 +25,8 @@ import { openStorage, requestPersistentStorage, type Storage } from './lib/stora
 import type { BangumiCandidate, CanvasSettings, Card } from './types';
 
 const WALL_MAX_WIDTH = 1280;
+/** compact 断点：与 global.css 的媒体查询保持一致（matchMedia 同步判定） */
+const COMPACT_BREAKPOINT = 720;
 const PLACEHOLDER_ASPECTS = [2 / 3, 3 / 4, 4 / 3];
 const LOCAL_OK_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const LOCAL_OK_EXT = /\.(png|jpe?g|webp|gif)$/i;
@@ -67,6 +70,29 @@ function makePresetCards(): Card[] {
   return cards;
 }
 
+/** 当前 schema 的卡片校验。schema 变更时原地更新此函数（不新增分支）；
+ *  校验失败不迁移，由启动流程引导 reset 清空本机旧库。 */
+function isCurrentSchemaCard(c: unknown): c is Card {
+  if (typeof c !== 'object' || c === null) return false;
+  const card = c as Record<string, unknown>;
+  return (
+    typeof card.id === 'string' &&
+    card.id !== '' &&
+    typeof card.attitude === 'string' &&
+    typeof card.name === 'string' &&
+    typeof card.type === 'string' &&
+    (typeof card.imageId === 'string' || card.imageId === null) &&
+    typeof card.aspect === 'number' &&
+    Number.isFinite(card.aspect) &&
+    card.aspect > 0 &&
+    (card.source === 'preset' ||
+      card.source === 'bangumi' ||
+      card.source === 'local' ||
+      card.source === 'manual') &&
+    typeof card.createdAt === 'number'
+  );
+}
+
 function AppInner() {
   const { toast } = useToast();
   const [storage, setStorage] = useState<Storage | null>(null);
@@ -78,12 +104,20 @@ function AppInner() {
   /** 入场动画只作用于本次初始化/reset 生成的卡片（全部加载动画 3s 以内） */
   const [stagedIds, setStagedIds] = useState<Set<string>>(new Set());
   const [thumbUrls, setThumbUrls] = useState<Map<string, string>>(new Map());
-  const [wallWidth, setWallWidth] = useState(0);
+  /** 墙舞台内容宽度（wall-stage 的 clientWidth，逻辑像素） */
+  const [stageWidth, setStageWidth] = useState(0);
+  /** compact（视口 < 720px）：构图恒为 1280 逻辑宽，预览整体等比缩放，导出与桌面同构 */
+  const [compact, setCompact] = useState(false);
   const [searchCardId, setSearchCardId] = useState<string | null>(null);
   const [editCardId, setEditCardId] = useState<string | null>(null);
+  const [actionCardId, setActionCardId] = useState<string | null>(null);
+  const [destroyCardId, setDestroyCardId] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
+  /** 加载的数据未通过 schema 校验：封锁落库并引导 reset（开发阶段不做字段迁移） */
+  const [legacyBlocked, setLegacyBlocked] = useState(false);
+  const [legacyOpen, setLegacyOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const wallWrapRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const hydratedRef = useRef(false);
 
   // ── 启动：开库 → 首次访问判定 → 初始化/回访 ─────────────────────────────
@@ -112,9 +146,16 @@ function AppInner() {
           setCards(init);
           setStagedIds(new Set(init.map((c) => c.id)));
           await st.saveCards(init);
-        } else {
+        } else if (loadedCards.every(isCurrentSchemaCard)) {
           setCards(loadedCards);
           setStagedIds(new Set());
+        } else {
+          // 数据与当前 schema 不兼容：不迁移，展示示例画布并引导 reset（落库保持封锁）
+          const init = makePresetCards();
+          setCards(init);
+          setStagedIds(new Set(init.map((c) => c.id)));
+          setLegacyBlocked(true);
+          setLegacyOpen(true);
         }
         setHydrated(true);
         hydratedRef.current = true;
@@ -130,14 +171,15 @@ function AppInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── 卡片变化防抖落库 ────────────────────────────────────────────────────
+  // ── 卡片变化防抖落库（schema 不兼容期间封锁，防止示例画布覆盖本机旧库）──
   useEffect(() => {
+    if (legacyBlocked) return;
     if (!hydratedRef.current || !storage) return;
     const t = window.setTimeout(() => {
       void storage.saveCards(cards);
     }, 250);
     return () => window.clearTimeout(t);
-  }, [cards, storage]);
+  }, [cards, storage, legacyBlocked]);
 
   // ── 缩略图 objectURL 按需加载 ───────────────────────────────────────────
   useEffect(() => {
@@ -162,33 +204,43 @@ function AppInner() {
     };
   }, [cards, thumbUrls]);
 
-  // ── 画布宽度测量：每次渲染提交后同步测量（仅变化时更新），另监听 resize ──
+  // ── 舞台宽度测量：compact 判定跟随 CSS 媒体查询断点，窄屏走缩放画布 ──────
   useLayoutEffect(() => {
-    const el = wallWrapRef.current;
+    const el = stageRef.current;
     if (!el) return;
+    const mq = window.matchMedia(`(max-width: ${COMPACT_BREAKPOINT}px)`);
     const measure = () => {
-      const w = Math.min(el.clientWidth, WALL_MAX_WIDTH);
-      setWallWidth((prev) => (Math.abs(prev - w) > 0.5 ? w : prev));
+      const w = el.clientWidth;
+      setStageWidth((prev) => (Math.abs(prev - w) > 0.5 ? w : prev));
+      setCompact(mq.matches);
     };
     measure();
     window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  });
+    mq.addEventListener('change', measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      mq.removeEventListener('change', measure);
+    };
+  }, []);
 
   // ── 布局 ────────────────────────────────────────────────────────────────
+  // 构图宽度：compact 恒为 1280（导出与桌面大屏同一构图）；桌面按舞台宽 1:1，上限 1280
+  const canvasWidth = compact ? WALL_MAX_WIDTH : Math.min(stageWidth, WALL_MAX_WIDTH);
+  // compact 预览缩放比：视口宽 / 构图宽；transform 不改变布局盒，外层 sizer 手动补高
+  const previewScale = compact && stageWidth > 0 ? stageWidth / WALL_MAX_WIDTH : 1;
   // 分离模式：元数据条高度按行高目标值固定（避免与行高互相依赖），行距按封面高+条高推进
   const stripMeta = useMemo(() => metaMetrics(settings.rowHeight), [settings.rowHeight]);
   const extraMetaH = settings.separatedMeta ? stripMeta.metaH : 0;
   const layout = useMemo(() => {
-    if (!cards.length || wallWidth <= 0) return { items: [], width: 0, height: 0 };
+    if (!cards.length || canvasWidth <= 0) return { items: [], width: 0, height: 0 };
     return justifyLayout({
       aspects: cards.map((c) => c.aspect),
-      containerWidth: wallWidth,
+      containerWidth: canvasWidth,
       rowHeight: settings.rowHeight,
       gap: settings.gap,
       extraHeight: extraMetaH,
     });
-  }, [cards, wallWidth, settings, extraMetaH]);
+  }, [cards, canvasWidth, settings, extraMetaH]);
 
   const cardById = useCallback((id: string | null) => cards.find((c) => c.id === id) ?? null, [cards]);
 
@@ -233,6 +285,8 @@ function AppInner() {
     const store = imageStoreRef.current;
     if (!st || !store) return;
     setResetOpen(false);
+    setLegacyOpen(false);
+    setLegacyBlocked(false);
     await st.clearAll();
     store.clearRuntime();
     setThumbUrls(new Map());
@@ -360,7 +414,7 @@ function AppInner() {
           sources,
           settings,
           title,
-          containerWidth: wallWidth,
+          containerWidth: canvasWidth,
           onScaleAttempt: (scale) => {
             if (scale !== 2) toast(`图片尺寸过大，已自动降级为 ${scale}x 重新导出`);
           },
@@ -382,10 +436,11 @@ function AppInner() {
     } finally {
       setExporting(false);
     }
-  }, [cards, exporting, settings, title, toast, wallWidth]);
+  }, [cards, exporting, settings, title, toast, canvasWidth]);
 
   const searchCard = cardById(searchCardId);
   const editCard = cardById(editCardId);
+  const actionCard = cardById(actionCardId);
 
   return (
     <div className="app">
@@ -411,33 +466,51 @@ function AppInner() {
         />
       </header>
 
-      <main className="wall-wrap" ref={wallWrapRef}>
-        {hydrated && layout.items.length > 0 && (
-          <div className="wall" style={{ width: layout.width, height: layout.height }}>
-            {layout.items.map((placed) => {
-              const card = cards[placed.index];
-              if (!card) return null;
-              return (
-                <CardTile
-                  key={card.id}
-                  card={card}
-                  x={placed.x}
-                  y={placed.y}
-                  w={placed.w}
-                  h={placed.h}
-                  thumbUrl={card.imageId ? thumbUrls.get(card.imageId) ?? null : null}
-                  staged={stagedIds.has(card.id)}
-                  animationDelay={stagedIds.has(card.id) ? placed.index * 220 : 0}
-                  separated={settings.separatedMeta}
-                  stripH={extraMetaH}
-                  stripM={stripMeta}
-                  onCoverClick={() => setSearchCardId(card.id)}
-                  onMetaClick={() => setEditCardId(card.id)}
-                />
-              );
-            })}
-          </div>
-        )}
+      <main className="wall-wrap">
+        <div className="wall-stage" ref={stageRef}>
+          {hydrated && layout.items.length > 0 && (
+            <div
+              className="wall-sizer"
+              style={{ width: layout.width * previewScale, height: layout.height * previewScale }}
+            >
+              <div
+                className="wall"
+                style={{
+                  width: layout.width,
+                  height: layout.height,
+                  transform: previewScale !== 1 ? `scale(${previewScale})` : undefined,
+                }}
+              >
+                {layout.items.map((placed) => {
+                  const card = cards[placed.index];
+                  if (!card) return null;
+                  return (
+                    <CardTile
+                      key={card.id}
+                      card={card}
+                      x={placed.x}
+                      y={placed.y}
+                      w={placed.w}
+                      h={placed.h}
+                      thumbUrl={card.imageId ? thumbUrls.get(card.imageId) ?? null : null}
+                      staged={stagedIds.has(card.id)}
+                      animationDelay={stagedIds.has(card.id) ? placed.index * 220 : 0}
+                      separated={settings.separatedMeta}
+                      stripH={extraMetaH}
+                      stripM={stripMeta}
+                      onCoverClick={
+                        compact ? () => setActionCardId(card.id) : () => setSearchCardId(card.id)
+                      }
+                      onMetaClick={
+                        compact ? () => setActionCardId(card.id) : () => setEditCardId(card.id)
+                      }
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </main>
 
       {searchCard && (
@@ -460,6 +533,54 @@ function AppInner() {
           onClose={() => setEditCardId(null)}
         />
       )}
+
+      {actionCard && (
+        <CardActionSheet
+          card={actionCard}
+          thumbUrl={actionCard.imageId ? thumbUrls.get(actionCard.imageId) ?? null : null}
+          onPickCover={() => {
+            setActionCardId(null);
+            setSearchCardId(actionCard.id);
+          }}
+          onEdit={() => {
+            setActionCardId(null);
+            setEditCardId(actionCard.id);
+          }}
+          onDestroy={() => {
+            setActionCardId(null);
+            setDestroyCardId(actionCard.id);
+          }}
+          onClose={() => setActionCardId(null)}
+        />
+      )}
+
+      <ConfirmModal
+        open={destroyCardId !== null}
+        title="销毁这张卡片？"
+        message="将从卡片墙移除该卡片，其封面图片也会一并删除。此操作不可撤销。"
+        confirmLabel="销毁"
+        cancelLabel="算了喵"
+        danger
+        onConfirm={() => {
+          if (destroyCardId) deleteCard(destroyCardId);
+          setDestroyCardId(null);
+        }}
+        onCancel={() => setDestroyCardId(null)}
+      />
+
+      <ConfirmModal
+        open={legacyOpen}
+        title="检测到旧版本数据"
+        message="本机持久化的卡片数据与当前版本的结构不兼容（开发阶段不做自动迁移）。可重置以继续：将清空本机全部卡片、图片与设置，并重新生成示例画布。"
+        confirmLabel="重置"
+        cancelLabel="暂不"
+        danger
+        onConfirm={() => void resetAll()}
+        onCancel={() => {
+          setLegacyOpen(false);
+          toast('旧数据未清除，本次会话的更改不会保存；重置后恢复保存', 'error');
+        }}
+      />
 
       <ConfirmModal
         open={resetOpen}

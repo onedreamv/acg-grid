@@ -29,6 +29,7 @@ ACG Grid：汇总 ACG 生涯喜好的卡片墙，使用来自bangumi API或用�
 - 屏幕渲染一律用缩略图；原图 Blob 仅在导出时逐卡解码、绘制后立即释放，不得常驻内存。
 - 元数据层按卡片宽高比自适应：ratio < 1.5 通栏贴底，ratio ≥ 1.5 居中胶囊；亚克力只模糊封面底部一小条（渐隐带 ≤ 16px）。
 - 持久化永不主动清空，唯一清除入口是 reset（二次确认）；启动时申请 `navigator.storage.persist()`。Dexie 不可用时回退内存模式。
+- 数据 schema 兼容策略：开发阶段不做字段迁移、不为旧字段积累兼容代码——卡片加载经 `App.tsx` 的 `isCurrentSchemaCard` 校验（schema 变更时原地更新该函数），失败即封锁落库并弹窗引导 reset；settings 走默认值合并自愈。
 - Safari 无 `ctx.filter`：`src/lib/exportCanvas.ts` 里有「无模糊 + 高不透明」回退分支，不要当死代码删。
 - `worker/index.ts` 响应头显式构造最小头集，不整体复制回源头——Workers fetch 已自动解压 body，回源头的 Content-Encoding / Content-Length 与实际内容不再匹配。
 - `pnpm-workspace.yaml` 的 allowBuilds 放行了 esbuild / workerd 构建脚本；新增依赖若带构建脚本需要在此加白。
