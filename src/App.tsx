@@ -205,6 +205,7 @@ function AppInner() {
   }, [cards, thumbUrls]);
 
   // ── 舞台宽度测量：compact 判定跟随 CSS 媒体查询断点，窄屏走缩放画布 ──────
+  // ResizeObserver 观察舞台元素本身：视口/旋转/仿真时序导致的 0 → 实宽变化均能自愈
   useLayoutEffect(() => {
     const el = stageRef.current;
     if (!el) return;
@@ -215,10 +216,23 @@ function AppInner() {
       setCompact(mq.matches);
     };
     measure();
-    window.addEventListener('resize', measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
     mq.addEventListener('change', measure);
+    // 挂载瞬间个别环境可能读到 0 宽（样式未就绪/视口仿真时序）且 RO 不投递，
+    // 以短周期重试兜底，读到非零宽度后即停（正常环境一次都不重试）
+    let tries = 0;
+    const retry = () => {
+      if (el.clientWidth > 0 || tries >= 30) {
+        measure();
+        return;
+      }
+      tries += 1;
+      setTimeout(retry, 100);
+    };
+    setTimeout(retry, 100);
     return () => {
-      window.removeEventListener('resize', measure);
+      ro.disconnect();
       mq.removeEventListener('change', measure);
     };
   }, []);
@@ -226,7 +240,8 @@ function AppInner() {
   // ── 布局 ────────────────────────────────────────────────────────────────
   // 构图宽度：compact 恒为 1280（导出与桌面大屏同一构图）；桌面按舞台宽 1:1，上限 1280
   const canvasWidth = compact ? WALL_MAX_WIDTH : Math.min(stageWidth, WALL_MAX_WIDTH);
-  // compact 预览缩放比：视口宽 / 构图宽；transform 不改变布局盒，外层 sizer 手动补高
+  // compact 预览缩放比：视口宽 / 构图宽；经 CSS zoom 在布局期缩放，
+  // 规避 transform 缩放层在 Android 页面缩放下的合成器瓦片错乱（闪烁/残影）
   const previewScale = compact && stageWidth > 0 ? stageWidth / WALL_MAX_WIDTH : 1;
   // 分离模式：元数据条高度按行高目标值固定（避免与行高互相依赖），行距按封面高+条高推进
   const stripMeta = useMemo(() => metaMetrics(settings.rowHeight), [settings.rowHeight]);
@@ -469,45 +484,41 @@ function AppInner() {
       <main className="wall-wrap">
         <div className="wall-stage" ref={stageRef}>
           {hydrated && layout.items.length > 0 && (
-            <div
-              className="wall-sizer"
-              style={{ width: layout.width * previewScale, height: layout.height * previewScale }}
-            >
               <div
                 className="wall"
                 style={{
                   width: layout.width,
                   height: layout.height,
-                  transform: previewScale !== 1 ? `scale(${previewScale})` : undefined,
+                  // 字符串形式注入，规避任何 React 数值样式序列化的边界行为
+                  zoom: previewScale !== 1 ? String(previewScale) : undefined,
                 }}
               >
-                {layout.items.map((placed) => {
-                  const card = cards[placed.index];
-                  if (!card) return null;
-                  return (
-                    <CardTile
-                      key={card.id}
-                      card={card}
-                      x={placed.x}
-                      y={placed.y}
-                      w={placed.w}
-                      h={placed.h}
-                      thumbUrl={card.imageId ? thumbUrls.get(card.imageId) ?? null : null}
-                      staged={stagedIds.has(card.id)}
-                      animationDelay={stagedIds.has(card.id) ? placed.index * 220 : 0}
-                      separated={settings.separatedMeta}
-                      stripH={extraMetaH}
-                      stripM={stripMeta}
-                      onCoverClick={
-                        compact ? () => setActionCardId(card.id) : () => setSearchCardId(card.id)
-                      }
-                      onMetaClick={
-                        compact ? () => setActionCardId(card.id) : () => setEditCardId(card.id)
-                      }
-                    />
-                  );
-                })}
-              </div>
+              {layout.items.map((placed) => {
+                const card = cards[placed.index];
+                if (!card) return null;
+                return (
+                  <CardTile
+                    key={card.id}
+                    card={card}
+                    x={placed.x}
+                    y={placed.y}
+                    w={placed.w}
+                    h={placed.h}
+                    thumbUrl={card.imageId ? thumbUrls.get(card.imageId) ?? null : null}
+                    staged={stagedIds.has(card.id)}
+                    animationDelay={stagedIds.has(card.id) ? placed.index * 220 : 0}
+                    separated={settings.separatedMeta}
+                    stripH={extraMetaH}
+                    stripM={stripMeta}
+                    onCoverClick={
+                      compact ? () => setActionCardId(card.id) : () => setSearchCardId(card.id)
+                    }
+                    onMetaClick={
+                      compact ? () => setActionCardId(card.id) : () => setEditCardId(card.id)
+                    }
+                  />
+                );
+              })}
             </div>
           )}
         </div>

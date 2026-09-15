@@ -259,19 +259,11 @@ input[type='range'] {
   width: 100%;
 }
 
-/* 缩放画布（compact）：sizer 以缩放后尺寸撑出布局盒，
-   wall 按构图逻辑尺寸渲染后整体 transform 等比缩放 */
-.wall-sizer {
+/* compact 缩放画布：用 zoom（布局期缩放，App.tsx 内联注入）而非
+   transform（合成期缩放）——后者在 Android 页面缩放下会瓦片错乱闪烁 */
+.wall {
   position: relative;
   margin: 0 auto;
-}
-
-.wall {
-  position: absolute;
-  top: 0;
-  left: 0;
-  /* compact 缩放以左上角为基准，视觉结果恰好填满 sizer */
-  transform-origin: top left;
 }
 
 .card-tile {
@@ -280,14 +272,14 @@ input[type='range'] {
   transform-origin: center;
 }
 
+/* backwards 而非 forwards：入场前应用 0% 关键帧，结束后回落基础样式，
+   避免合成器为每张卡长期持有 fill:forwards 的独立图层（页面缩放后重光栅化闪烁） */
 .card-tile.jelly-in {
-  opacity: 0;
-  animation: jelly-in 0.72s cubic-bezier(0.34, 1.45, 0.5, 1) forwards;
+  animation: jelly-in 0.72s cubic-bezier(0.34, 1.45, 0.5, 1) backwards;
 }
 
 .card-tile.card-fade {
-  opacity: 0;
-  animation: card-fade 0.3s ease forwards;
+  animation: card-fade 0.3s ease backwards;
 }
 
 @keyframes jelly-in {
@@ -312,6 +304,9 @@ input[type='range'] {
 }
 
 @keyframes card-fade {
+  from {
+    opacity: 0;
+  }
   to {
     opacity: 1;
   }
@@ -1110,6 +1105,35 @@ input[type='range'] {
 
   .meta-layer.meta-empty {
     background: linear-gradient(to bottom, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.55));
+  }
+}
+
+/* 触屏主输入设备：滚动内容内禁用 backdrop-filter。
+   页面捏合放大后，Chromium 对含 backdrop-filter 的滚动层逐帧重采样，
+   滚动时整页撕裂重影（画布与卡片闪烁）；用更实的半透明底色近似磨砂观感。 */
+@media (hover: none) and (pointer: coarse) {
+  body {
+    background-attachment: scroll;
+  }
+
+  .control-panel {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .meta-layer {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.8));
+  }
+
+  .meta-layer:hover {
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.86));
+  }
+
+  .meta-capsule {
+    background: rgba(255, 255, 255, 0.82);
   }
 }
 

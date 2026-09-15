@@ -76,7 +76,7 @@ export function CardTile({
         aria-label={`选择封面：${card.name || '未填写卡片'}`}
       >
         {thumbUrl ? (
-          <img src={thumbUrl} alt={card.name || ''} draggable={false} />
+          <img src={thumbUrl} alt={card.name || ''} draggable={false} decoding="async" />
         ) : card.imageId ? (
           // 已设置封面但加载失败/加载中：回退类型色渐变占位块
           <div
