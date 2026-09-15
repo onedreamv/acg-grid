@@ -24,20 +24,29 @@ export function ControlPanel({
 }) {
   const [open, setOpen] = useState(false);
   const [storageInfo, setStorageInfo] = useState<{ usage: number; quota: number } | null>(null);
+  const [storageUnavailable, setStorageUnavailable] = useState(false);
   const popRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  // 打开设置面板时查询存储占用 / 配额
+  // 打开设置面板时查询存储占用 / 配额与持久化授权。Storage API 仅在安全上下文
+  // （HTTPS / localhost）暴露：API 缺失或查询失败、或持久化未获授予（persist
+  // 申请被拒），一律显示「持久化存储不可用」
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    void navigator.storage
-      ?.estimate?.()
-      .then((est) => {
-        if (alive) setStorageInfo({ usage: est.usage ?? 0, quota: est.quota ?? 0 });
+    const storage = navigator.storage;
+    if (!storage?.estimate || !storage.persisted) {
+      setStorageUnavailable(true);
+      return;
+    }
+    Promise.all([storage.estimate(), storage.persisted()])
+      .then(([est, persisted]) => {
+        if (!alive) return;
+        if (persisted) setStorageInfo({ usage: est.usage ?? 0, quota: est.quota ?? 0 });
+        else setStorageUnavailable(true);
       })
       .catch(() => {
-        if (alive) setStorageInfo(null);
+        if (alive) setStorageUnavailable(true);
       });
     return () => {
       alive = false;
@@ -126,7 +135,9 @@ export function ControlPanel({
             <span className="storage-value">
               {storageInfo
                 ? `${fmtBytes(storageInfo.usage)} / ${fmtBytes(storageInfo.quota)}`
-                : '查询中…'}
+                : storageUnavailable
+                  ? '持久化存储不可用'
+                  : '查询中…'}
             </span>
           </div>
           <label className="switch-row" title="元数据条追加在卡片下方，不遮挡模糊封面">
