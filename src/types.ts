@@ -24,7 +24,7 @@ export interface CanvasSettings {
   separatedMeta: boolean;
 }
 
-export const DEFAULT_SETTINGS: CanvasSettings = { rowHeight: 250, gap: 5, separatedMeta: false };
+export const DEFAULT_SETTINGS: CanvasSettings = { rowHeight: 250, gap: 5, separatedMeta: true };
 
 /** IndexedDB 图片库条目：原图 Blob（仅导出用）+ 缩略图 Blob（屏幕用） */
 export interface StoredImage {
