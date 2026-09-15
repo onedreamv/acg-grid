@@ -37,7 +37,7 @@ export function TitleBar({ title, onTitleChange }: { title: string; onTitleChang
           ref={inputRef}
           className="title-input"
           value={draft}
-          maxLength={60}
+          maxLength={25}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => {

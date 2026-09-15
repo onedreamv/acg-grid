@@ -36,7 +36,6 @@ export interface ExportResult {
 }
 
 const MARGIN = 24; // 内容包围盒四边留白（逻辑像素）
-const TITLE_FONT = 34;
 const TITLE_BLOCK_H = 48; // 标题行高
 const TITLE_GAP = 14; // 标题与卡墙间距
 
@@ -362,18 +361,44 @@ async function attemptRender(input: ExportInput, geo: Geometry, scale: number): 
 
   const blurEnabled = supportsCtxFilter();
   const ac: AttemptContext = { ctx, scale, blurEnabled };
-
-  // 标题（仅卡墙与标题，不含任何控件）
-  if (input.title.trim()) {
-    ctx.fillStyle = '#333';
-    ctx.font = `700 ${TITLE_FONT * scale}px ${FONT_STACK}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(input.title, geo.width / 2, MARGIN + TITLE_BLOCK_H / 2, geo.width - MARGIN * 2);
-  }
-
   const cardRadius = (h: number) => Math.min(18, h * 0.06);
   const px = (v: number) => v * scale;
+
+  // 标题（仅卡墙与标题，不含任何控件）。所见即所得：复刻屏幕端 h1.title-text
+  // 的样式——渐变文字（linear-gradient 100deg，参数与 global.css 同步维护）、
+  // 字重 800、0.02em 字距、居中；字号沿用屏幕 clamp(24px, 4vw, 38px) 规则，
+  // 以构图宽度为基准（1280 构图 → 38px，与宽屏桌面所见一致）。
+  // 坐标必须乘 scale：此前只缩放了字号，标题被画在左上角。
+  const title = input.title.trim();
+  if (title) {
+    const titleFS = Math.round(Math.min(38, Math.max(24, input.containerWidth * 0.04)));
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `800 ${titleFS * scale}px ${FONT_STACK}`;
+    (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${
+      titleFS * scale * 0.02
+    }px`;
+    const tw = ctx.measureText(title).width;
+    const th = titleFS * scale;
+    // CSS 100° 渐变线复刻：方向 (sin100°, −cos100°)，长度 |w·sin100°|+|h·cos100°|，
+    // 以文本盒中心为渐变线中点；色标位置与 global.css .title-text 一致
+    const dirX = Math.sin((100 * Math.PI) / 180);
+    const dirY = -Math.cos((100 * Math.PI) / 180);
+    const gradLen = tw * dirX + th * dirY;
+    const cx = px(geo.width / 2);
+    const cy = px(MARGIN + TITLE_BLOCK_H / 2);
+    const grad = ctx.createLinearGradient(
+      cx - (gradLen / 2) * dirX,
+      cy - (gradLen / 2) * dirY,
+      cx + (gradLen / 2) * dirX,
+      cy + (gradLen / 2) * dirY,
+    );
+    grad.addColorStop(0.1, '#3a3f4c');
+    grad.addColorStop(0.55, '#2f6f9f');
+    grad.addColorStop(0.95, '#b0578a');
+    ctx.fillStyle = grad;
+    ctx.fillText(title, cx, cy, px(geo.width - MARGIN * 2));
+  }
 
   for (const placed of geo.layout.items) {
     const card = input.cards[placed.index];

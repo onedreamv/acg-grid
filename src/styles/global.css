@@ -220,6 +220,8 @@ input[type='range'] {
   filter: drop-shadow(0 1px 3px rgba(150, 170, 200, 0.9));
 }
 
+/* 渐变文字样式（色标/角度/字重/字距）与 exportCanvas.ts 标题重绘参数同步维护，
+   保证导出产物所见即所得；字号 clamp 与导出端按构图宽的换算同一规则 */
 .title-text {
   margin: 0;
   font-size: clamp(24px, 4vw, 38px);
