@@ -1,28 +1,39 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <link
-      rel="icon"
-      type="image/svg+xml"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='%2366CCFF'%3E%3Cellipse cx='9' cy='11' rx='3.2' ry='4.2'/%3E%3Cellipse cx='16' cy='8.5' rx='3.2' ry='4.4'/%3E%3Cellipse cx='23' cy='11' rx='3.2' ry='4.2'/%3E%3Cpath d='M16 14c-4.6 0-8.5 3.4-8.5 7.6 0 2.9 2.3 4.9 5.1 4.9 1.3 0 2.3-.5 3.4-.5s2.1.5 3.4.5c2.8 0 5.1-2 5.1-4.9C24.5 17.4 20.6 14 16 14z'/%3E%3C/g%3E%3C/svg%3E"
-    />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
-    />
-    <meta name="description" content="一张汇总 ACG 生涯喜好的卡片墙" />
-    <title>My ACG Grid</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-    <!-- Cloudflare Web Analytics -->
-    <script
-      type="module"
-      src="https://static.cloudflareinsights.com/beacon.min.js"
-      data-cf-beacon='{"token": "e0aac0c1b7a542ad9ff4d0f900858135"}'
-    ></script>
-    <!-- End Cloudflare Web Analytics -->
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='%2366CCFF'%3E%3Cellipse cx='9' cy='11' rx='3.2' ry='4.2'/%3E%3Cellipse cx='16' cy='8.5' rx='3.2' ry='4.4'/%3E%3Cellipse cx='23' cy='11' rx='3.2' ry='4.2'/%3E%3Cpath d='M16 14c-4.6 0-8.5 3.4-8.5 7.6 0 2.9 2.3 4.9 5.1 4.9 1.3 0 2.3-.5 3.4-.5s2.1.5 3.4.5c2.8 0 5.1-2 5.1-4.9C24.5 17.4 20.6 14 16 14z'/%3E%3C/g%3E%3C/svg%3E" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
+  <meta name="description" content="总结你的ACG喜好并与他人分享" />
+  <title>My ACG Grid</title>
+  <!-- Link Preview / Rich Card：og:image 需绝对 URL（生产域）；图片 public/og-image.png -->
+  <link rel="canonical" href="https://grid.1dream.online/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="ACG Grid" />
+  <meta property="og:title" content="My ACG Grid" />
+  <meta property="og:description" content="总结你的ACG喜好并与他人分享" />
+  <meta property="og:url" content="https://grid.1dream.online/" />
+  <meta property="og:image" content="https://grid.1dream.online/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="白发萝莉；花束；祈祷" />
+  <meta property="og:locale" content="zh_CN" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="My ACG Grid" />
+  <meta name="twitter:description" content="总结你的ACG喜好并与他人分享" />
+  <meta name="twitter:image" content="https://grid.1dream.online/og-image.png" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+  <!-- Cloudflare Web Analytics -->
+  <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js"
+    data-cf-beacon='{"token": "e0aac0c1b7a542ad9ff4d0f900858135"}'></script>
+  <!-- End Cloudflare Web Analytics -->
+</body>
+
 </html>
