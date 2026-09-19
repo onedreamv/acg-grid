@@ -72,6 +72,23 @@ export function overlayMode(w: number, h: number): 'full' | 'capsule' {
   return w / h < 1.5 ? 'full' : 'capsule';
 }
 
+/**
+ * 卡片最小宽高比（w/h）：分离模式元数据条需容纳「4 字态度 + 左右内边距 + 徽章间隙 +
+ * 最宽常用预设徽章(Anime)」，元数据度量全部线性于 rowHeight/250，所需比例与行高无关
+ * （≈ 0.616），取 0.65 留余量；不得越过 2:3（0.667），否则正常竖图卡会被垫宽留白。
+ * 极端窄图（如 1:3 数轴）布局时垫宽至此比例，封面 contain 居中、两侧留白。
+ * 注：Character 等超长徽章仍可能与 4 字态度轻微重叠——与屏幕端溢出表现一致（所见即所得）。
+ */
+export const MIN_CARD_ASPECT = 0.65;
+
+/** 布局用有效宽高比：极端窄图垫宽到 MIN_CARD_ASPECT（card.aspect 数据保持原图比例） */
+export function effectiveAspect(aspect: number): number {
+  return Math.max(aspect, MIN_CARD_ASPECT);
+}
+
+/** 封面留白背景色（极端窄图 contain 居中时露出）；与 global.css .card-cover img 的 background 同步维护 */
+export const LETTERBOX_BG = '#f2f5f9';
+
 export interface BadgeSpec {
   width: number;
   height: number;

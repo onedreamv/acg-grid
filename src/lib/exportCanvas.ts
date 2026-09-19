@@ -1,7 +1,7 @@
 import type { CanvasSettings, Card } from '../types';
 import { FONT_STACK } from '../constants';
 import { justifyLayout, type LayoutResult } from './layout';
-import { badgeSpec, metaMetrics, overlayMode, textWidth, type BadgeSpec } from './metrics';
+import { badgeSpec, effectiveAspect, LETTERBOX_BG, metaMetrics, overlayMode, textWidth, type BadgeSpec } from './metrics';
 import { buildExportFilename } from './filename';
 
 /**
@@ -128,7 +128,7 @@ interface Geometry {
 }
 
 function computeGeometry(input: ExportInput): Geometry {
-  const aspects = input.cards.map((c) => c.aspect);
+  const aspects = input.cards.map((c) => effectiveAspect(c.aspect));
   const extra = input.settings.separatedMeta ? metaMetrics(input.settings.rowHeight).metaH : 0;
   const layout = justifyLayout({
     aspects,
@@ -430,11 +430,19 @@ async function attemptRender(input: ExportInput, geo: Geometry, scale: number): 
     ctx.save();
     roundRectPath(ctx, x, y, w, tileHp, r);
     ctx.clip();
-    // 封面（占位卡为渐变水蓝玻璃块）
+    // 封面（占位卡为渐变水蓝玻璃块）。contain 居中：正常卡比例一致时无缝铺满；
+    // 被垫宽的极端窄图两侧留白露出 LETTERBOX_BG（与屏幕端 .card-cover img 同语义）
     if (bitmap) {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(bitmap, x, y, w, h);
+      const coverScale = Math.min(w / bitmap.width, h / bitmap.height);
+      const dw = bitmap.width * coverScale;
+      const dh = bitmap.height * coverScale;
+      if (dw < w - 0.5 || dh < h - 0.5) {
+        ctx.fillStyle = LETTERBOX_BG;
+        ctx.fillRect(x, y, w, h);
+      }
+      ctx.drawImage(bitmap, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
     } else {
       const grad = ctx.createLinearGradient(x, y, x + w, y + h);
       grad.addColorStop(0, '#9fd4f2');

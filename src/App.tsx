@@ -20,7 +20,7 @@ import { exportWallPNG } from './lib/exportCanvas';
 import { genId } from './lib/id';
 import { ImageStore } from './lib/imageStore';
 import { justifyLayout } from './lib/layout';
-import { metaMetrics } from './lib/metrics';
+import { metaMetrics, effectiveAspect } from './lib/metrics';
 import { openStorage, requestPersistentStorage, type Storage } from './lib/storage';
 import type { BangumiCandidate, CanvasSettings, Card } from './types';
 
@@ -282,7 +282,7 @@ function AppInner() {
   const layout = useMemo(() => {
     if (!cards.length || canvasWidth <= 0) return { items: [], width: 0, height: 0 };
     return justifyLayout({
-      aspects: cards.map((c) => c.aspect),
+      aspects: cards.map((c) => effectiveAspect(c.aspect)),
       containerWidth: canvasWidth,
       rowHeight: settings.rowHeight,
       gap: settings.gap,

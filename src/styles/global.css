@@ -334,8 +334,11 @@ input[type='range'] {
   width: 100%;
   height: 100%;
   display: block;
-  /* 卡片宽高比与图片原始宽高比一致：fill 即无裁剪铺满 */
-  object-fit: fill;
+  /* 卡片宽高比 ≥ 图片原始比例（极端窄图被 metrics.ts 的 MIN_CARD_ASPECT 垫宽）：
+     contain 保证图片完整不变形——正常卡比例一致时等价铺满，窄图居中、两侧留白 */
+  object-fit: contain;
+  /* 留白底色，与 metrics.ts 的 LETTERBOX_BG 同步维护 */
+  background: #f2f5f9;
   user-select: none;
 }
 
