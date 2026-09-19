@@ -318,19 +318,22 @@ function drawStripContent(
   const line1CY = y + coverH + m.padTop + m.attitudeFS * 0.61;
   const line2CY = line1CY + m.attitudeFS * 1.22 - m.attitudeFS * 0.61 + m.lineGap + m.nameFS * 0.65;
   const textX = x + m.padX;
-  const maxTextW = w - m.padX * 2 - (badge ? badge.width + m.innerGap : 0);
+  // 态度全宽、永不截断（与屏幕端 meta-strip 及 drawMetaOverlay full 分支同一语义）；
+  // 名字避让徽章列、可截断
+  const attitudeMaxW = w - m.padX * 2;
+  const nameMaxW = w - m.padX * 2 - (badge ? badge.width + m.innerGap : 0);
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   if (card.attitude) {
     ctx.fillStyle = '#2b2b33';
     ctx.font = `700 ${px(m.attitudeFS)}px ${FONT_STACK}`;
-    drawTruncated(ctx, card.attitude, px(textX), px(line1CY), px(maxTextW));
+    drawTruncated(ctx, card.attitude, px(textX), px(line1CY), px(attitudeMaxW));
   }
   if (card.name) {
     ctx.fillStyle = '#55555f';
     ctx.font = `500 ${px(m.nameFS)}px ${FONT_STACK}`;
-    drawTruncated(ctx, card.name, px(textX), px(line2CY), px(maxTextW));
+    drawTruncated(ctx, card.name, px(textX), px(line2CY), px(nameMaxW));
   }
   if (badge) {
     drawBadge(ctx, badge, x + w - badge.width / 2 - m.padX * 0.7, y + coverH + stripH / 2, scale);
