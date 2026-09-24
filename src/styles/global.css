@@ -194,6 +194,41 @@ input[type='range'] {
   cursor: pointer;
 }
 
+/* 关于小卡片：按钮在面板最右，弹层随之右对齐锚定 */
+.about-pop {
+  left: auto;
+  right: 0;
+  width: 210px;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.about-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.about-body {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* 蓝链：色值与 title-text 渐变中的蓝标同源，保证与整体配色一致 */
+.about-link {
+  color: #2f6f9f;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(47, 111, 159, 0.35);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.about-link:hover {
+  color: #1f4f76;
+  border-color: rgba(47, 111, 159, 0.7);
+}
+
 /* ── 标题 ─────────────────────────────────────────────────── */
 
 .title-bar {
@@ -1051,6 +1086,11 @@ input[type='range'] {
     left: 50%;
     transform: translateX(-50%);
     width: min(300px, calc(100vw - 24px));
+  }
+
+  /* 关于卡内容窄，居中后无需拉到 300px */
+  .about-pop {
+    width: min(210px, calc(100vw - 24px));
   }
 
   .title-input {

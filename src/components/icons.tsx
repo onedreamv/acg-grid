@@ -61,6 +61,16 @@ export function ResetIcon({ size = 22, className }: IconProps) {
   );
 }
 
+export function InfoIcon({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base(size)} className={className}>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8.1v.2" />
+      <path d="M12 11.3v4.9" />
+    </svg>
+  );
+}
+
 /** 白猫爪（标题装饰 / 删除按钮），fill 风格 */
 export function PawIcon({ size = 22, className, color = 'currentColor' }: IconProps & { color?: string }) {
   return (
